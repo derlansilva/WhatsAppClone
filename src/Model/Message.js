@@ -2,6 +2,7 @@ import Model from "./Model";
 import Firebase from "../Utils/Firebase";
 import Format from "../Utils/Format";
 
+
 export default  class Message extends Model{
     constructor(){
         super()
@@ -21,6 +22,25 @@ export default  class Message extends Model{
 
     get status(){ return this._data.status }
     set status(value) {return this._data.status = value }
+
+    get preview(){return this._data.preview}
+    set preview(value){ return this._data.preview = value}
+
+    get info(){ return this._data.info}
+    set info(value){ return this._data.info = value}
+
+    get fileType(){ return this._data.fileType}
+    set fileType(value){ return this._data.fileType = value}
+
+    get from(){ return this._data.from}
+    set from(value){ return this._data.from = value}
+
+    get size(){ return this._data.size}
+    set size(value){ return this._data.size = value}
+
+    get filename(){ return this._data.filename}
+    set filename(value){ return this._data.filename = value}
+
 
     getViewElement( me = true ){
 
@@ -57,7 +77,7 @@ export default  class Message extends Model{
                             </div>
                             <div class="_3a5-b">
                                 <div class="_1DZAH" role="button">
-                                    <span class="message-time">17:01</span>
+                                    <span class="message-time"> ${Format.timeStampToTime(this.timeStamp)}</span>
 
                                 </div>
                             </div>
@@ -94,17 +114,12 @@ export default  class Message extends Model{
                                         </div>
                                     </div>
                                 </div>
-                                <img src="#" class="_1JVSX message-photo" style="width: 100%; display:none">
+                                <img src="${this.content}" class="_1JVSX message-photo" style="width: 100%; display:none">
                                 <div class="_1i3Za"></div>
-                            </div>
-                            <div class="message-container-legend">
-                                <div class="_3zb-j ZhF0n">
-                                    <span dir="ltr" class="selectable-text invisible-space copyable-text message-text">Texto da foto</span>
-                                </div>
                             </div>
                             <div class="_2TvOE">
                                 <div class="_1DZAH text-white" role="button">
-                                    <span class="message-time">17:22</span>
+                                    <span class="message-time"> ${Format.timeStampToTime(this.timeStamp)}</span>
                                 </div>
                             </div>
                         </div>
@@ -119,6 +134,13 @@ export default  class Message extends Model{
                     </div>
                 </div>
                  `
+
+                div.querySelector('.message-photo').on('load', e=> {
+
+                    div.querySelector('.message-photo').show()
+                    div.querySelector('._340lu').hide();
+
+                })
                 break;
 
             case 'document':
@@ -127,13 +149,13 @@ export default  class Message extends Model{
                 <div class="_3_7SH _1ZPgd">
                     <div class="_1fnMt _2CORf">
                         <a class="_1vKRe" href="#">
-                            <div class="_2jTyA" style="background-image: url()"></div>
+                            <div class="_2jTyA" style="background-image: url(${this.proview})"></div>
                             <div class="_12xX7">
                                 <div class="_3eW69">
                                     <div class="JdzFp message-file-icon icon-doc-pdf"></div>
                                 </div>
                                 <div class="nxILt">
-                                    <span dir="auto" class="message-filename">Arquivo.pdf</span>
+                                    <span dir="auto" class="message-filename">${this.filename}</span>
                                 </div>
                                 <div class="_17viz">
                                     <span data-icon="audio-download" class="message-file-download">
@@ -151,18 +173,24 @@ export default  class Message extends Model{
                             </div>
                         </a>
                         <div class="_3cMIj">
-                            <span class="PyPig message-file-info">32 páginas</span>
-                            <span class="PyPig message-file-type">PDF</span>
-                            <span class="PyPig message-file-size">4 MB</span>
+                            <span class="PyPig message-file-info">${this.info}</span>
+                            <span class="PyPig message-file-type">%${this.fileType}</span>
+                            <span class="PyPig message-file-size">${this.size}</span>
                         </div>
                         <div class="_3Lj_s">
                             <div class="_1DZAH" role="button">
-                                <span class="message-time">18:56</span>
+                                <span class="message-time"> ${Format.timeStampToTime(this.timeStamp)}</span>
                             </div>
                         </div>
                     </div>
                 </div>
                  `
+                div.on('click' , e => {
+
+                    window.open(this.content)
+
+                })
+                
                 break;
 
             case 'audio':
@@ -230,7 +258,7 @@ export default  class Message extends Model{
                         </div>
                         <div class="_27K_5">
                             <div class="_1DZAH" role="button">
-                                <span class="message-time">17:48</span>
+                                <span class="message-time"> ${Format.timeStampToTime(this.timeStamp)}</span>
                             </div>
                         </div>
                     </div>
@@ -279,6 +307,88 @@ export default  class Message extends Model{
 
         return div
     }
+    static sendDocument( chatId , from , file ,  filePreview , info ){
+
+        Message.send(chatId , from , 'document' , '').then(msgRef => {
+            Message.upload(file).then(snapshot => {
+                let downloadFile = snapshot.downloadURL 
+
+                if(filePreview){
+
+                    Message.upload(filePreview).then(snapshot2 => {
+                        let downloadPreview  = snapshot2.downloadURL
+
+                        msgRef.set({
+                            content : downloadFile,
+                            proview: downloadPreview,
+                            filename : file.name ,
+                            size : file.size,
+                            fileType : file.type,
+                            status: 'sent' ,
+                            info 
+                        }, {
+                            merge : true 
+                        })
+                    })
+                }else{
+                    msgRef.set({
+                        content : downloadFile,
+                        filename : file.name ,
+                        size : file.size,
+                        fileType : file.type,
+                        status: 'sent'
+                    }, {
+                        merge : true 
+                    })
+                }
+            })
+        })
+    }
+
+    static upload(file , from){
+
+        return new Promise((s,f ) => {
+
+            let uploadTask = Firebase.hd().ref(from).child(Date.now() + '_' +  file.name).put(file);
+
+            uploadTask.on('state_changed', e => {
+
+            console.info('upload' , e)
+
+        } , err => {
+
+            f(err)
+            
+        } , () => {
+
+            s(uploadTask.snapshot)
+
+        })
+
+        })
+
+        
+    }
+
+
+    static sendImage(chatId , from , file){
+
+        return new Promise((s, f) => {
+
+            Message.upload(file, from ).then( snapshot => {
+                Message.send(
+                    chatId,
+                    from ,
+                    'image',
+                    snapshot.downloadURL
+                ).then(()=> {
+                    s()
+                })
+            })
+
+        })
+    }
+
 
     static send(chatId , from , type , content){
             return new Promise((s, f) => {
@@ -289,13 +399,16 @@ export default  class Message extends Model{
                     type ,
                     from
                 }).then(result => {
-                    result.parent.doc(result.id).set({
+
+                    let docRef = result.parent.doc(result.id)
+
+                    docRef.set({
                         status : 'sent'
                     } , {
                         merge : true //se não fizer isso todos os dados  do usuario
                                     // serão apagados , e vai da um trabalho do cão recupera-las 
                     }).then(() => {
-                        s();
+                        s(docRef);
                     })
                 })
             })

@@ -10,10 +10,9 @@ export default class Firebase {
             authDomain: "whatsapp-clone-1df84.firebaseapp.com",
             databaseURL: "https://whatsapp-clone-1df84.firebaseio.com",
             projectId: "whatsapp-clone-1df84",
-            storageBucket: "whatsapp-clone-1df84.appspot.com",
+            storageBucket: "gs://whatsapp-clone-1df84.appspot.com",
             messagingSenderId: "452879521503",
-            appId: "1:452879521503:web:b9bae30c56620ecfb83b6a",
-            measurementId: "G-N5SFDHV0XP"
+
           }
 
         this.init()

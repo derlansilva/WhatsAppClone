@@ -6,12 +6,11 @@ import Firebase from '../Utils/Firebase'
 import User from '../Model/User';
 import Chat from '../Model/Chat';
 import  Message from '../Model/Message'
+import Base64 from '../Utils/Base64';
 
 
 export default class WhatsAppController {
     constructor(){
-        console.log("WhatsAppController OK")
-
         this._firebase = new Firebase()
         this.initAuth()
         this.elementsPrototype()
@@ -182,12 +181,10 @@ export default class WhatsAppController {
         this.el.panelMessagesContainer.innerHTML = '';
 
         //carregando as messages na tela 
-        Message.getRef(this._contactActive.chatId).orderBy('timeStamp').onSnapshot(docs=> {
+        Message.getRef(this._contactActive.chatId).orderBy('timeStamp').onSnapshot(docs => {
 
             let scrollTop = this.el.panelMessagesContainer.scrollTop;
-            let scrollTopMax = 
-                            (this.el.panelMessagesContainer.scrollHeight - 
-                            this.el.panelMessagesContainer.offsetHeight)
+            let scrollTopMax =  (this.el.panelMessagesContainer.scrollHeight - this.el.panelMessagesContainer.offsetHeight)
 
             let autoScroll = (scrollTop >= scrollTopMax)
 
@@ -220,7 +217,16 @@ export default class WhatsAppController {
                     this.el.panelMessagesContainer.appendChild(view)
 
                     
-                }else if (me){
+                }else{
+
+                    let view = message.getStatusViewElement(me)
+
+                    this.el.panelMessagesContainer.querySelector('#_' +   data.id).innerHTML = view.innerHTML
+
+                }
+                
+                if (this.el.panelMessagesContainer.querySelector('#_' + data.id ) && me){
+                    
                     let msgEl = this.el.panelMessagesContainer.querySelector('#_' + data.id)
 
                     msgEl.querySelector('.message-status').innerHTML = message.getStatusViewElement()
@@ -431,12 +437,12 @@ export default class WhatsAppController {
         })
 
         this.el.inputPhoto.on('change',  e=> {
-            console.log(this.el.inputPhoto.files);
-
+            
             [...this.el.inputPhoto.files].forEach(file => {
-                console.log(file)
+                Message.sendImage(this._contactActive.chatId , this._user.email , file);
             })
         })
+        
 
         this.el.btnAttachCamera.on('click',e => {
             this.closeAllMainPanel()
@@ -476,7 +482,49 @@ export default class WhatsAppController {
         })
 
         this.el.btnSendPicture.on('click' , e=> {
-            console.log('clicou')
+            this.el.btnSendPicture.disabled = true
+
+            let regex = /^data:(.+);base64,(.*)$/;
+            let  result = this.el.pictureCamera.src.match(regex);
+            let mimeType = result[1];
+            let ext = mimeType.split('/')[1];
+            let filename = `camera${Date.now()}.${ext}`
+
+            let picture = new Image()
+            picture.src = this.el.pictureCamera.src
+            picture.onload = e => {
+
+                let canvas = document.createElement('canvas');
+                let context = canvas.getContext('2d')
+
+                canvas.width = picture.width;
+                canvas.height = picture.height ;
+
+                context.translate(picture.width , 0)
+                context.scale( -1 , 1)
+
+                context.drawImage(picture , 0 , 0 , canvas.width , canvas.height)
+
+                fetch(canvas.toDateURL(mimeType))
+                    .then(res => {return res.arrayBuffer()})
+                    .then(buffer  => { return new File([buffer] , filename, { type})})
+                    .then(file => {
+                        Message.sendImage(this._contactActive.chatId , this._user)
+
+                        this.el.btnSendPicture.disabled = false ;
+
+                        this.closeAllMainPanel()
+                        this._camera.stop()
+                        this.el.btnReshootPanelCamera.hide()
+                        this.el.pictureCamera.hide()
+                        this.el.videoCamera.show()
+                        this.el.containerSendPicture.hide()
+                        this.el.containerTakePicture.show()
+                        this.el.panelMessagesContainer.show()
+
+
+                    })
+            }
         })
 
 
@@ -538,9 +586,36 @@ export default class WhatsAppController {
             this.closeAllMainPanel()
             this.el.panelMessagesContainer.show()
         })
+
         this.el.btnSendDocument.on('click' , e => {
-            console.log('send document')
+
+            let file = this.el.inputDocument.files[0]
+            let base64 =  this.el.imgPanelDocumentPreview.src;
+
+            if(file.type === 'application/pdf'){
+
+                Base64.toFile(base64).then(filePreview  => {
+                    Message.sendDocument(
+                        this._contactActive.chatId , 
+                        this._user.email , file , filePreview , 
+                        this.infoPanelDocumentPreview.innerHTML 
+                    )
+    
+                })
+            }else{
+
+                Message.sendDocument(
+                    this._contactActive.chatId,
+                    this._user.email , file
+                )
+
+            }
+
+            this.el.btnClosePanelDocumentPreview.click()
+
         })
+
+        
 
         this.el.btnAttachContact.on('click', e => {
             this.el.modalContacts.show()
