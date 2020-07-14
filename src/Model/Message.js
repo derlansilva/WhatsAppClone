@@ -46,6 +46,8 @@ export default  class Message extends Model{
 
         let div = document.createElement('div');
 
+        div.id= `_${this.id}`;
+
         div.className = 'message';
 
         switch(this.type){
@@ -73,7 +75,7 @@ export default  class Message extends Model{
                                 </div>
                             </div>
                             <div class="_1lC8v">
-                                <div dir="ltr" class="_3gkvk selectable-text invisible-space copyable-text">Nome do Contato Anexado</div>
+                                <div dir="ltr" class="_3gkvk selectable-text invisible-space copyable-text">${this.content.name}</div>
                             </div>
                             <div class="_3a5-b">
                                 <div class="_1DZAH" role="button">
@@ -89,6 +91,13 @@ export default  class Message extends Model{
 
                 </div>
                 `
+
+                if(this.content.photo){
+                    let img = div.querySelector('.photo-contact-sended');
+                    img.src = this.content.photo
+                    img.show()
+                }
+
                 break;
 
             case 'image':
@@ -114,7 +123,7 @@ export default  class Message extends Model{
                                         </div>
                                     </div>
                                 </div>
-                                <img src="${this.content}" class="_1JVSX message-photo" style="width: 100%; display:none">
+                                <img src="${this.content.photo}" class="_1JVSX message-photo" style="width: 100%; display:none">
                                 <div class="_1i3Za"></div>
                             </div>
                             <div class="_2TvOE">
@@ -277,7 +286,7 @@ export default  class Message extends Model{
             default:
                 div.innerHTML =
                 `
-                <div class="font-style _3DFk6 tail" id = "_${this.id}">
+                <div class="font-style _3DFk6 tail">
                     <span class="tail-container"></span>
                     <span class="tail-container highlight"></span>
                     <div class="Tkt2p">
@@ -343,6 +352,12 @@ export default  class Message extends Model{
                 }
             })
         })
+    }
+
+    static sendContact(chatId , from , contact ){
+
+        return Message.send( chatId ,  from , 'contact' , contact );
+
     }
 
     static upload(file , from){

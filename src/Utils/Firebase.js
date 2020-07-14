@@ -1,5 +1,6 @@
 const firebase = require('firebase')
 require('firebase/firestore')
+import Firebase from 'firebase/app';
 
 export default class Firebase {
 

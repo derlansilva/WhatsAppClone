@@ -1,7 +1,7 @@
 const pdfJsLib = require('pdfjs-dist')
 const path = require('path')
 
-pdfJsLib.GlobalWorkerOptions.workerSrc = path.resolve(__dirname , '../../dist/pdf.worker.bundle.js')
+pdfjsLib.GlobalWorkerOptions.workerSrc = path.resolve(__dirname, '../../dist/pdf.worker.bundle.js');
 
 export  default class DocumentPreviewController{
     constructor(file){
@@ -43,13 +43,13 @@ export  default class DocumentPreviewController{
                                 let viewport = page.getViewport(1);
 
                                 let canvas = document.createElement('canvas');
-                                let context = canvas.getContext('2d')
+                                let canvasContext = canvas.getContext('2d')
 
                                 canvas.width = viewport.width;
                                 canvas.height = viewport.height;
 
                                 page.render({
-                                    canvasContext : context,
+                                    canvasContext,
                                     viewport
                                 }).then(()=> {
                                     let _s = (pdf.numPages > 1 )? 's' : '';
@@ -78,8 +78,8 @@ export  default class DocumentPreviewController{
                 break;
 
                 default:
-                
-                    break;
+
+                    f()
             }
 
         })
