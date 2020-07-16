@@ -8,17 +8,72 @@ import Chat from '../Model/Chat';
 import Message from '../Model/Message'
 import Base64 from '../Utils/Base64';
 import ContactsController from './ContactsController'
+import Upload from '../Utils/Upload';
 
 
 export default class WhatsAppController {
     constructor(){
+
+        this._active = true; 
         this._firebase = new Firebase()
         this.initAuth()
         this.elementsPrototype()
         this.loadElements()
         this.initEvents()
 
+        this.checkNotifications()
+
     }
+
+    notification(){
+
+        if(Notification.permission === 'granted' && this._active ){
+
+            let n = new Notification(this._contactActive.name , {
+
+                icon : this._contactActive.photo,
+
+                body : data.content
+
+            });
+            let sound = new Audio('../../audio/alert.mp3');
+            sound.currentTime = 0 
+            sound.play()
+
+            setTimeout(() => {
+
+                if(n) n.close()
+
+            },3000)
+        }
+    }
+
+    checkNotifications(){
+        if(typeof Notification == 'function'){
+
+            if(Notification.permission !== 'granted'){
+
+                this.el.alertNotificationPermission.show()
+
+            }else {
+
+                this.el.alertNotificationPermission.hide();
+
+            }
+
+            this.el.alertNotificationPermission.on('click' , e => {
+
+                 Notification.requestPermission(permission => {
+                     if(permission == 'granted'){
+                         this.el.alertNotificationPermission.hide();
+                         console.log('notificações permitidas! ')
+                     }
+                 })
+
+            })
+        }
+    }
+
 
     initAuth(){
         this._firebase.initAuth().then(response => {
@@ -26,10 +81,6 @@ export default class WhatsAppController {
             this._user = new User(response.user.email);
 
             this._user.on('datachange' , data => {
-
-                document.querySelector('title').innerHTML = data.name + '- WhatsApp Clone';
-
-                this.el.inputNamePanelEditProfile.innerHTML = data.name
 
                 if(data.photo){
                     let photo = this.el.imgPanelEditProfile;
@@ -43,9 +94,14 @@ export default class WhatsAppController {
                     photo2.show()
 
                 
+                }else {
+                    img.hide()
                 }
 
-                this.initContacts()
+                this.el.inputNamePanelEditProfile.innerHTML = data.name
+                
+                document.querySelector('title').innerHTML =  `${data.name} WhatsApp Clone`;
+                
             })
 
             this._user.name = response.user.displayName;
@@ -148,19 +204,14 @@ export default class WhatsAppController {
 
         }).catch(err => {})
     }
-    
 
-    loadElements(){
-        this.el = {}
-        document.querySelectorAll('[id]').forEach(element => {
-            this.el[Format.getCamelCase(element.id)] = element ; 
-        })
-    }
 
-    //metodo para criar um chat
     setActiveChat(contact){
+
         if ( this._contactActive){
+
             Message.getRef(this._contactActive.chatId).onSnapshot(() => {})
+
         }
 
         this._contactActive = contact
@@ -183,7 +234,8 @@ export default class WhatsAppController {
         
         this.el.panelMessagesContainer.innerHTML = '';
 
-        //this._messagesReceived = []
+        this._messagesReceived = []
+        
 
         //carregando as messages na tela 
         Message.getRef(this._contactActive.chatId).orderBy('timeStamp').onSnapshot(docs => {
@@ -193,7 +245,6 @@ export default class WhatsAppController {
 
             let autoScroll = (scrollTop >= scrollTopMax)
 
-
             docs.forEach(doc => {
 
                 let data = doc.data();
@@ -201,14 +252,18 @@ export default class WhatsAppController {
                 data.id = doc.id
 
                 let message = new Message()
-                message.fromJSON(data)
 
+                message.fromJSON(data)
+                
                 let me = (data.from === this._user.email)
 
-                /*if(!me && this._messagesReceived.filter(id => { return id === data.id}).length === 0){
+                if(!me && this._messagesReceived.filter(id => { return (id === data.id) }).length === 0 ){
+
                     this.notification(data);
                     this._messagesReceived.push(data.id)
-                }*/
+
+                }
+
 
                 let view = message.getViewElement(me)
 
@@ -247,8 +302,7 @@ export default class WhatsAppController {
                 if(message.type === 'contact'){
 
                     view.querySelector('.btn-message-send').on('click' , e => {
-
-                        
+                
                         Chat.createIfNotExists( this._user.email , message.content.email ).then( chat => {
 
                             let contact = new User(message.content.email)
@@ -275,8 +329,12 @@ export default class WhatsAppController {
             })
 
             if(autoScroll){
+
                 this.el.panelMessagesContainer.scrollTop = 
-                        (this.el.panelMessagesContainer.scrollHeight - this.el.panelMessagesContainer.offsetHeight)
+
+                    (this.el.panelMessagesContainer.scrollHeight - 
+                     this.el.panelMessagesContainer.offsetHeight)
+
             }else {
 
                 this.el.panelMessagesContainer.scrollTop = scrollTop ;
@@ -290,6 +348,17 @@ export default class WhatsAppController {
 
     }
 
+    
+
+    loadElements(){
+        this.el = {}
+        document.querySelectorAll('[id]').forEach(element => {
+            this.el[Format.getCamelCase(element.id)] = element ; 
+        })
+    }
+
+    //metodo para criar um chat
+
     elementsPrototype(){
         //importante usar funcao e nao erofunction pois vamos precisar usar o this.
         Element.prototype.hide = function(){
@@ -302,7 +371,7 @@ export default class WhatsAppController {
             return this;
         }
         Element.prototype.toggle = function(){
-            this.style.display = (this.style.display === 'nome')? 'block' : 'none'
+            this.style.display = (this.style.display === 'block')? 'none' : 'block'
             return this
         }
 
@@ -354,6 +423,17 @@ export default class WhatsAppController {
     }
 
     initEvents(){
+        window.addEventListener('focus' , e => {
+
+            this._active =true
+
+        });
+
+        window.addEventListener('blur' , e => {
+
+            this._active = false 
+
+        })
 
         this.el.inputSearchContacts.on('keyup' ,  e=> {
 
@@ -400,15 +480,24 @@ export default class WhatsAppController {
         })
 
         this.el.inputProfilePhoto.on('change' , () => {
+
             if(this.el.inputProfilePhoto.files.length > 0 ){
+
                 let file =  this.el.inputProfilePhoto.files[0]
 
                 Upload.send(file , this._user.email).then(snapshot => {
-                    snapshot.ref.getDownloadURL().then(downloadURL => {
-                        this._user.photo = downloadURL.toString()
-                        this._user.save().then(() => {
+                    
+                        snapshot.ref.getDownloadURL().then(downloadURL => {
+
+                            //this._user.photo = snapshot.downloadURL ;
+
+                            this._user.photo = downloadURL.toString()
+
+                            this._user.save().then(() => {
+
                             this.el.btnClosePanelEditProfile.click()
-                        })
+                            })
+
                     })
                 })
             }
@@ -480,6 +569,7 @@ export default class WhatsAppController {
             })
         })
 
+
         this.el.btnAttach.on('click', e => {
             e.stopPropagation()
             this.el.menuAttach.addClass('open')
@@ -503,7 +593,7 @@ export default class WhatsAppController {
             this.closeAllMainPanel()
             this.el.panelCamera.addClass('open');
             this.el.panelCamera.css({
-                'height': 'calc(100% - 120px)'
+                'height': '100%'
             })
 
             this._camera =  new CameraController(this.el.videoCamera);
@@ -531,8 +621,8 @@ export default class WhatsAppController {
             this.el.pictureCamera.hide()
             this.el.videoCamera.show()
             this.el.btnReshootPanelCamera.hide()
-            this.el.containerTakePicture.show()
             this.el.containerSendPicture.hide()
+            this.el.containerTakePicture.show()
 
         })
 
@@ -564,7 +654,7 @@ export default class WhatsAppController {
                     .then(res => {return res.arrayBuffer()})
                     .then(buffer  => { return new File([buffer] , filename, { type : mimeType})})
                     .then(file => {
-                        Message.sendImage(this._contactActive.chatId , this._user)
+                        Message.sendImage(this._contactActive.chatId , this._user.email , file)
 
                         this.el.btnSendPicture.disabled = false ;
                         this.closeAllMainPanel()
@@ -596,12 +686,13 @@ export default class WhatsAppController {
             if(this.el.inputDocument.files.length){
 
                 let file = this.el.inputDocument.files[0];
+                
                 this._documentPreviewController = new DocumentPreviewController(file);
 
                 this._documentPreviewController.getPreviewData().then(result => {
 
                     this.el.imgPanelDocumentPreview.src = result.src;
-                    this.el.infoPanelDocumentPreview.innerHTML = result.src;
+                    this.el.infoPanelDocumentPreview.innerHTML = result.info;
                     this.el.imagePanelDocumentPreview.show()
                     this.el.filePanelDocumentPreview.hide();
 
@@ -621,9 +712,11 @@ export default class WhatsAppController {
                         break
                     }
 
-                    this.el.filenamePanelDocumentPreview.innerHTML = file.name;
                     this.el.imagePanelDocumentPreview.hide()
+
                     this.el.filePanelDocumentPreview.show()
+                    
+                    this.el.filenamePanelDocumentPreview.innerHTML = file.name;
                 })
             }
         })
@@ -643,7 +736,9 @@ export default class WhatsAppController {
                 Base64.toFile(base64).then(filePreview  => {
                     Message.sendDocument(
                         this._contactActive.chatId , 
-                        this._user.email , file , filePreview , 
+                        this._user.email , 
+                        file , 
+                        filePreview , 
                         this.el.infoPanelDocumentPreview.innerHTML
                     )
     
@@ -651,8 +746,11 @@ export default class WhatsAppController {
             }else{
 
                 Message.sendDocument(
+
                     this._contactActive.chatId,
+
                     this._user.email , file
+
                 )
 
             }
@@ -693,12 +791,10 @@ export default class WhatsAppController {
 
             this._microphoneController.on('ready' , music => {
 
-                console.log('ready event')
-
                 this._microphoneController.startRecorder()
             })
 
-            this._microphoneController.on('recordtimer' , timer => {
+            this._microphoneController.on('recordtimer' , time => {
                 this.el.recordMicrophoneTimer.innerHTML = Format.toTime(timer)
             })
         })
@@ -710,8 +806,21 @@ export default class WhatsAppController {
         })
 
         this.el.btnFinishMicrophone.on('click' , e=> {
+
+            this._microphoneController.on('recorded' , (file  , metadata) => {
+                Message.sendAudio(
+                    this._contactActive.chatId,
+                    this._user.email,
+                    file,
+                    metadata ,
+                    this._user.photo
+                )
+            })
+
             this._microphoneController.stopRecorder()
             this.closeRecordMicrophone()
+
+
         })
 
 
@@ -724,20 +833,27 @@ export default class WhatsAppController {
 
         //evento ao digitar mensagem
         this.el.inputText.on('keyup' , e=> {
+
             if(this.el.inputText.innerHTML.length){
+
                 this.el.inputPlaceholder.hide();
+
                 this.el.btnSendMicrophone.hide()
+
                 this.el.btnSend.show()
+
             }else{
+
                 this.el.inputPlaceholder.show();
+
                 this.el.btnSendMicrophone.show()
+
                 this.el.btnSend.hide()
             }
         })
 
         this.el.btnSend.on('click' , e=> {
 
-            this._contactActive
 
             Message.send(
                 this._contactActive.chatId ,

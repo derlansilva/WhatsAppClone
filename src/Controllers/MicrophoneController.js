@@ -1,6 +1,6 @@
 import ClassEvent from "../Utils/ClassEvent";
 
-export default  class MicrophoneController extends ClassEvent {
+export default class MicrophoneController extends ClassEvent {
     constructor(){
         super() //metoda chama o construtor da clase pai , ou seja da classe ClassEvent.js mais conhecida como herança
 
@@ -20,7 +20,6 @@ export default  class MicrophoneController extends ClassEvent {
             this.trigger('ready' , this._stream);
             
         }).catch(err => {
-            console.log(err)
         })
     }
     isAvailable(){
@@ -41,6 +40,8 @@ export default  class MicrophoneController extends ClassEvent {
                 mineType: this._mineType
             })
 
+            this.startTimer()
+
             this._recordedChunks = [];
 
             this._mediaRecorder.addEventListener('dataavailable' , e => {
@@ -59,24 +60,25 @@ export default  class MicrophoneController extends ClassEvent {
 
                 let filename = `rec${Date.now()}.webm`
 
-                let file = new File([blob] , filename , {
-                    type: this._mineType ,
-                    lastModified: Date.now()
-                })
-
-                console.log('file' , file)
+                let audioContext = new AudioContext()
 
                 let reader = new FileReader()
 
                 reader.onload = e=> {
 
-                    console.log('reader file' , file)
-                    let audio = new Audio(reader.result)
+                    audioContext.decodeAudioData(reader.result).then(decode => {
 
-                    audio.play()
+                        let file = new File([blob] , filename , {
+                            type: this._mineType ,
+                            lastModified: Date.now()
+                        })
+
+                        this.trigger('recorded' , file , decode );
+
+                    })
                 }
 
-                reader.readAsDataURL(file)
+                reader.readAsArrayBuffer(blob)
             })
 
             this._mediaRecorder.start()

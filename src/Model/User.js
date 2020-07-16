@@ -1,5 +1,5 @@
 import Firebase from './../Utils/Firebase'
-import Model from './Model'
+import  Model  from './Model';
 
 export default class User extends Model {
 
